@@ -1095,8 +1095,8 @@
     
     // Fetch from GitHub Gist
     try {
-      const res = await fetch('https://gist.githubusercontent.com/delmesacarmel/007808f57ff23eb74b7c5dd71193bbb3/raw/projects.json', { cache: 'no-store' });
-      if (res.ok) return await res.json();
+      const res = await fetch('https://api.github.com/gists/007808f57ff23eb74b7c5dd71193bbb3?_=' + Date.now() + '', { cache: 'no-store' });
+      if (res.ok) { const g = await res.json(); return JSON.parse(g.files['projects.json'].content); }
     } catch (e) { console.error('Gist fetch failed:', e); }
     
     // Fallback to embedded data
