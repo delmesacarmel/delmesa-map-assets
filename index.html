@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Del Mesa Carmel — Project Map</title>
+<style>
+  /* ---------- Design tokens ---------- */
+  :root {
+    --bg:          #f5f1e8;
+    --surface:     #ffffff;
+    --ink:         #1a1a1a;
+    --ink-soft:    #3d3d3d;
+    --ink-muted:   #6b6b6b;
+    --rule:        #d9d2c2;
+    --accent:      #1f4e3d;      /* deep forest green — civic, calm */
+    --accent-soft: #e6ede8;
+    --shadow:      0 2px 4px rgba(26,26,26,.06), 0 8px 24px rgba(26,26,26,.08);
+
+    /* status colors — high contrast, color-blind safe */
+    --status-active:   #b8430f;  /* burnt orange */
+    --status-active-bg:#fbe9dd;
+    --status-planned:  #1f4e7a;  /* deep blue */
+    --status-planned-bg:#e1edf7;
+    --status-complete: #2d6a3e;  /* forest green */
+    --status-complete-bg:#e3efdf;
+
+    --hood-fill:      rgba(31, 78, 61, 0.18);
+    --hood-fill-hover:rgba(31, 78, 61, 0.38);
+    --hood-fill-active:rgba(184, 67, 15, 0.55);
+    --hood-stroke:    #1f4e3d;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    font-size: 18px;
+    line-height: 1.55;
+  }
+
+  /* ---------- Header ---------- */
+  header.site {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .masthead {
+    max-width: 1700px;
+    margin: 0 auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .masthead h1 {
+    margin: 0;
+    font-size: clamp(28px, 3.2vw, 42px);
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .masthead .subtitle {
+    margin: 4px 0 0;
+    font-size: 16px;
+    font-style: italic;
+    color: var(--ink-muted);
+  }
+  .meta {
+    text-align: right;
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+  .meta .updated {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 4px 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  /* ---------- Layout ---------- */
+  main {
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 32px 40px 64px;
+    display: grid;
+    grid-template-columns: minmax(0, 2.4fr) minmax(320px, 1fr);
+    gap: 32px;
+  }
+  @media (max-width: 1000px) {
+    main { grid-template-columns: 1fr; }
+    header.site { padding: 24px; }
+    main { padding: 24px; }
+  }
+
+  /* ---------- Map panel ---------- */
+  .map-panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .map-panel h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .map-panel .instr {
+    margin: 0 0 16px;
+    color: var(--ink-muted);
+    font-size: 16px;
+  }
+  .map-wrap {
+    position: relative;
+    width: 100%;
+  }
+  #delmesa-map {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+  }
+
+  /* Neighborhood interaction */
+  .hood polygon,
+  .hood path {
+    fill: var(--hood-fill);
+    stroke: var(--hood-stroke);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    cursor: pointer;
+    transition: fill .15s ease, stroke-width .15s ease;
+  }
+  .hood:hover polygon,
+  .hood:hover path,
+  .hood:focus polygon,
+  .hood:focus path {
+    fill: var(--hood-fill-hover);
+    stroke-width: 3;
+    outline: none;
+  }
+  .hood.is-selected polygon,
+  .hood.is-selected path {
+    fill: var(--hood-fill-active);
+    stroke: var(--status-active);
+    stroke-width: 4;
+  }
+  .hood.has-active polygon,
+  .hood.has-active path {
+    fill: rgba(184, 67, 15, 0.28);
+  }
+  .hood.has-active:hover polygon,
+  .hood.has-active:hover path {
+    fill: rgba(184, 67, 15, 0.45);
+  }
+
+  /* Labels */
+  .hood-label { pointer-events: none; }
+  .label-bg {
+    fill: rgba(255, 255, 255, 0.92);
+    stroke: var(--ink-soft);
+    stroke-width: 1;
+  }
+  .label-name {
+    font-family: Georgia, serif;
+    font-size: 13px;
+    font-weight: 700;
+    fill: var(--ink);
+    letter-spacing: 0.03em;
+  }
+  .label-units {
+    font-family: Georgia, serif;
+    font-size: 11px;
+    fill: var(--ink-soft);
+  }
+
+  /* Active dot indicator */
+  .active-dot {
+    fill: var(--status-active);
+    stroke: white;
+    stroke-width: 2;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 15px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid;
+  }
+  .legend-swatch.active   { background: rgba(184, 67, 15, 0.28); border-color: var(--status-active); }
+  .legend-swatch.inactive { background: var(--hood-fill);        border-color: var(--hood-stroke); }
+
+  /* ---------- Detail panel ---------- */
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 28px;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+  @media (max-width: 1000px) {
+    .detail-panel { position: static; max-height: none; }
+  }
+
+  .detail-empty {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--ink-muted);
+  }
+  .detail-empty .icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  .detail-empty h3 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: var(--ink);
+  }
+
+  .detail-header {
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--rule);
+    margin-bottom: 20px;
+  }
+  .detail-header .eyebrow {
+    display: inline-block;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .detail-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .detail-header .units {
+    margin: 6px 0 0;
+    font-size: 18px;
+    color: var(--ink-soft);
+  }
+
+  .section {
+    margin-bottom: 28px;
+  }
+  .section:last-child { margin-bottom: 0; }
+  .section-title {
+    font-size: 14px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .project {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    background: var(--bg);
+    border-left: 4px solid var(--ink-soft);
+    border-radius: 4px;
+  }
+  .project:last-child { margin-bottom: 0; }
+  .project.status-active   { border-left-color: var(--status-active); }
+  .project.status-planned  { border-left-color: var(--status-planned); }
+  .project.status-complete { border-left-color: var(--status-complete); }
+
+  .project-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .project-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .status-badge {
+    flex-shrink: 0;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .status-badge.status-active   { background: var(--status-active-bg);   color: var(--status-active); }
+  .status-badge.status-planned  { background: var(--status-planned-bg);  color: var(--status-planned); }
+  .status-badge.status-complete { background: var(--status-complete-bg); color: var(--status-complete); }
+
+  .project-desc {
+    margin: 4px 0 0;
+    font-size: 16px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .project-date {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+
+  .empty-note {
+    padding: 14px 16px;
+    background: var(--bg);
+    border-radius: 4px;
+    color: var(--ink-muted);
+    font-size: 15px;
+    font-style: italic;
+  }
+
+  /* ---------- Neighborhood index (below map on mobile, in aside on desktop) ---------- */
+  .index-list {
+    list-style: none;
+    margin: 20px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .index-list li button {
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background .15s, border-color .15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .index-list li button:hover,
+  .index-list li button:focus {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    outline: none;
+  }
+  .index-list li button.is-selected {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .index-list li button.is-selected .unit-range { color: rgba(255,255,255,.85); }
+  .index-list .hood-name { font-weight: 700; }
+  .index-list .unit-range { font-size: 13px; color: var(--ink-muted); }
+  .index-list li button .active-count {
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--status-active);
+    color: white;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: auto;
+  }
+  .index-list li button.is-selected .active-count {
+    background: white;
+    color: var(--status-active);
+  }
+
+  /* ---------- Edit mode ---------- */
+  .edit-btn {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s, border-color .15s;
+  }
+  .edit-btn:hover, .edit-btn:focus {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    outline: none;
+  }
+  .edit-btn.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .edit-btn.primary:hover { background: #163828; }
+  .edit-btn.danger {
+    border-color: #c0392b;
+    color: #c0392b;
+  }
+  .edit-btn.danger:hover { background: #fbe9e5; }
+  .edit-btn.small {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+  .edit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .admin-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .admin-badge {
+    display: none;
+    background: var(--status-active);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  body.edit-mode .admin-badge { display: inline-block; }
+
+  .unsaved-dot {
+    display: none;
+    width: 10px; height: 10px;
+    background: var(--status-active);
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+  body.has-unsaved-changes .unsaved-dot { display: inline-block; }
+
+  /* Editing controls (only visible when edit mode is on) */
+  .project-actions, .notice-actions, .add-project-btn, .add-notice-btn {
+    display: none;
+  }
+  body.edit-mode .project-actions,
+  body.edit-mode .notice-actions {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+  body.edit-mode .add-project-btn,
+  body.edit-mode .add-notice-btn {
+    display: inline-flex;
+    margin-top: 10px;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 0;
+    color: var(--ink-soft);
+  }
+  .icon-btn:hover, .icon-btn:focus {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
+  .icon-btn.delete:hover { background: #fbe9e5; border-color: #c0392b; color: #c0392b; }
+
+  .project-head.with-actions { align-items: center; }
+
+  /* Editable neighborhood-header pencil */
+  body.edit-mode .edit-hood-notices {
+    display: inline-block;
+    margin-top: 12px;
+  }
+  .edit-hood-notices { display: none; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,26,26,.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-backdrop.is-open {
+    display: flex;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: 8px;
+    max-width: 580px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 48px rgba(0,0,0,.3);
+    padding: 28px;
+  }
+  .modal h2 {
+    margin: 0 0 4px;
+    font-size: 24px;
+  }
+  .modal .modal-sub {
+    margin: 0 0 20px;
+    font-size: 15px;
+    color: var(--ink-muted);
+  }
+  .form-row { margin-bottom: 16px; }
+  .form-row label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+  }
+  .form-row label .hint {
+    font-weight: normal;
+    color: var(--ink-muted);
+    font-size: 13px;
+    margin-left: 6px;
+  }
+  .form-row input[type="text"],
+  .form-row textarea,
+  .form-row select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font: inherit;
+    font-size: 16px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .form-row input[type="text"]:focus,
+  .form-row textarea:focus,
+  .form-row select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .form-row textarea {
+    min-height: 90px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+  }
+  .form-actions .spacer { flex: 1; }
+
+  /* Publish panel — floating bottom-right */
+  .publish-panel {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    z-index: 900;
+    max-width: 320px;
+    font-size: 14px;
+  }
+  body.edit-mode .publish-panel { display: block; }
+  .publish-panel strong { display: block; margin-bottom: 4px; }
+  .publish-panel p { margin: 0 0 10px; color: var(--ink-soft); font-size: 13px; }
+  .publish-panel .publish-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* Login modal styling */
+  .login-modal .form-row { margin-bottom: 12px; }
+
+  @media (max-width: 600px) {
+    .modal { padding: 20px; }
+    .publish-panel { left: 20px; bottom: 20px; max-width: none; }
+  }
+
+  /* ---------- Print ---------- */
+  @media print {
+    body { background: white; font-size: 12pt; }
+    header.site, main { padding: 0; }
+    .map-panel, .detail-panel {
+      box-shadow: none;
+      border: 1px solid #999;
+      break-inside: avoid;
+    }
+    main { grid-template-columns: 1fr; gap: 16px; }
+    .detail-panel { position: static; max-height: none; }
+    button, .index-list { display: none; }
+  }
+
+  /* ---------- Notices / warnings ---------- */
+  .notice {
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border-left: 5px solid;
+    background: var(--bg);
+  }
+  .notice:last-child { margin-bottom: 0; }
+  .notice.level-warning {
+    background: #fff5e6;
+    border-left-color: #d97706;
+  }
+  .notice.level-info {
+    background: #e1edf7;
+    border-left-color: var(--status-planned);
+  }
+  .notice-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .notice-icon {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .notice-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .notice-body {
+    margin: 0;
+    font-size: 16px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Community banner — top of page */
+  .community-banner {
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .community-banner .notice {
+    margin-top: 16px;
+    margin-bottom: 0;
+  }
+  @media (max-width: 1000px) {
+    .community-banner { padding: 0 24px; }
+  }
+
+  /* Notices section in detail panel — tighter spacing */
+  .notices-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .notices-section:last-child { border-bottom: none; }
+  .notices-section .section-title {
+    color: #b45309;
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="masthead">
+    <div>
+      <h1 id="property-name">Del Mesa Carmel</h1>
+      <p class="subtitle" id="property-subtitle">California's Premier Adult Community</p>
+    </div>
+    <div class="meta">
+      <div id="property-address">500 Del Mesa Drive, Carmel, California 93923</div>
+      <div id="property-phone">831.624.1853</div>
+      <div class="updated">Updated: <span id="last-updated">—</span></div>
+    </div>
+  </div>
+</header>
+
+
+
+
+
+<div class="community-banner" id="community-banner" aria-label="Community-wide notices"></div>
+
+<main>
+  <section class="map-panel" aria-labelledby="map-heading">
+    <h2 id="map-heading">Community Project Map</h2>
+    <p class="instr">Tap or click any neighborhood to see its current projects. Neighborhoods with active work are shaded in orange.</p>
+    <div class="map-wrap">
+      <svg id="delmesa-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1224 792" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Del Mesa Carmel community map with 12 neighborhoods"><g id="reference"><image width="3400" height="2200" transform="scale(0.36)" xlink:href="./map-bg.png" xmlns:xlink="http://www.w3.org/1999/xlink"/></g><g id="neighborhoods"><g class="hood" data-hood="pacific-heights-1" tabindex="0" role="button" aria-label="PACIFIC HEIGHTS 1, Units 1–27. Press Enter to view projects."><polygon points="152.13 339.09 234.5 80.13 399.24 110.35 307.98 287.54 230.35 345.02 152.13 339.09" /></g><g class="hood" data-hood="pacific-heights-2" tabindex="0" role="button" aria-label="PACIFIC HEIGHTS 2, Units 28–57. Press Enter to view projects."><polygon points="30.06 9.02 243.39 27.98 148.58 329.61 30.06 320.13 30.06 9.02" /></g><g class="hood" data-hood="sunny-flats" tabindex="0" role="button" aria-label="SUNNY FLATS, Units 58–74. Press Enter to view projects."><polygon points="224.73 428.58 361.61 449.61 413.47 446.65 383.84 538.8 209.61 505.02 224.73 428.58" /></g><g class="hood" data-hood="sunny-mesa" tabindex="0" role="button" aria-label="SUNNY MESA, Units 75–100. Press Enter to view projects."><polygon points="126.06 345.02 243.39 347.98 312.13 287.54 360.13 329.61 345.32 442.8 222.65 425.61 198.95 513.32 144.43 507.98 126.06 345.02" /></g><g class="hood" data-hood="mesa-west" tabindex="0" role="button" aria-label="MESA WEST, Units 101–125. Press Enter to view projects."><polygon points="390.35 198.65 612 235.39 563.39 329.61 481.02 363.39 366.06 332.58 390.35 198.65" /></g><g class="hood" data-hood="stonybrooks" tabindex="0" role="button" aria-label="STONYBROOKS, Units 126–150. Press Enter to view projects."><polygon points="559.54 343.09 568.87 430.95 805.32 506.65 857.76 389.76 599.54 336.87 559.54 343.09" /></g><g class="hood" data-hood="quail-hollow" tabindex="0" role="button" aria-label="QUAIL HOLLOW, Units 151–162. Press Enter to view projects."><polygon points="38.36 506.8 198.35 518.06 142.65 612.28 97.02 658.5 16.43 637.17 38.36 506.8" /></g><g class="hood" data-hood="sunrise-vista" tabindex="0" role="button" aria-label="SUNRISE VISTA, Units 163–184. Press Enter to view projects."><polygon points="199.84 518.95 395.98 570.21 306.21 656.13 136.43 627.69 199.84 518.95" /></g><g class="hood" data-hood="old-oaks-1" tabindex="0" role="button" aria-label="OLD OAKS 1, Units 185–212. Press Enter to view projects."><polygon points="252.43 725.32 510.65 751.54 505.76 622.21 437.76 598.65 447.09 561.76 423.54 551.54 252.43 725.32" /></g><g class="hood" data-hood="old-oaks-2" tabindex="0" role="button" aria-label="OLD OAKS 2, Units 213–242. Press Enter to view projects."><path d="M717.87,497.23l-168.05-66.41-42.02,65.62-40.48-29.49-18.43,95.04s5.79,34.98,6.38,36.17,50.88,22.12,50.88,22.12l152.77-47.72,58.95-75.33Z" /></g><g class="hood" data-hood="mini-mesa" tabindex="0" role="button" aria-label="MINI MESA, Units 243–265. Press Enter to view projects."><polygon points="786.5 520.72 967.83 690.5 787.98 724.28 685.46 641.02 786.5 520.72" /></g><g class="hood" data-hood="the-highlands" tabindex="0" role="button" aria-label="THE HIGHLANDS, Units 266–289 + 228. Press Enter to view projects."><polygon points="814.65 516.87 835.37 485.76 1016.09 485.76 1045.18 411.98 1090.14 394.21 1189.76 465.32 1045.62 611.09 919.56 633.32 814.65 516.87" /></g></g><g id="labels" pointer-events="none"><g class="hood-label" data-for="pacific-heights-1" transform="translate(280,220)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">PACIFIC HEIGHTS 1</text><text class="label-units" y="14" text-anchor="middle">Units 1–27</text></g><g class="hood-label" data-for="pacific-heights-2" transform="translate(130,160)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">PACIFIC HEIGHTS 2</text><text class="label-units" y="14" text-anchor="middle">Units 28–57</text></g><g class="hood-label" data-for="sunny-flats" transform="translate(305,485)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">SUNNY FLATS</text><text class="label-units" y="14" text-anchor="middle">Units 58–74</text></g><g class="hood-label" data-for="sunny-mesa" transform="translate(235,420)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">SUNNY MESA</text><text class="label-units" y="14" text-anchor="middle">Units 75–100</text></g><g class="hood-label" data-for="mesa-west" transform="translate(490,290)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">MESA WEST</text><text class="label-units" y="14" text-anchor="middle">Units 101–125</text></g><g class="hood-label" data-for="stonybrooks" transform="translate(690,420)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">STONYBROOKS</text><text class="label-units" y="14" text-anchor="middle">Units 126–150</text></g><g class="hood-label" data-for="quail-hollow" transform="translate(105,580)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">QUAIL HOLLOW</text><text class="label-units" y="14" text-anchor="middle">Units 151–162</text></g><g class="hood-label" data-for="sunrise-vista" transform="translate(265,605)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">SUNRISE VISTA</text><text class="label-units" y="14" text-anchor="middle">Units 163–184</text></g><g class="hood-label" data-for="old-oaks-1" transform="translate(390,690)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">OLD OAKS 1</text><text class="label-units" y="14" text-anchor="middle">Units 185–212</text></g><g class="hood-label" data-for="old-oaks-2" transform="translate(600,530)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">OLD OAKS 2</text><text class="label-units" y="14" text-anchor="middle">Units 213–242</text></g><g class="hood-label" data-for="mini-mesa" transform="translate(830,625)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">MINI MESA</text><text class="label-units" y="14" text-anchor="middle">Units 243–265</text></g><g class="hood-label" data-for="the-highlands" transform="translate(985,540)"><rect class="label-bg" x="-70" y="-22" width="140" height="44" rx="6"/><text class="label-name" y="-4" text-anchor="middle">THE HIGHLANDS</text><text class="label-units" y="14" text-anchor="middle">Units 266–289 + 228</text></g></g></svg>
+    </div>
+    <div class="legend" role="group" aria-label="Map legend">
+      <div class="legend-item"><span class="legend-swatch active" aria-hidden="true"></span> <span>Active work in progress</span></div>
+      <div class="legend-item"><span class="legend-swatch inactive" aria-hidden="true"></span> <span>No active work</span></div>
+    </div>
+
+    <ul class="index-list" id="hood-index" aria-label="Jump to neighborhood"></ul>
+  </section>
+
+  <aside class="detail-panel" id="detail-panel" aria-live="polite" aria-label="Neighborhood project details">
+    <div class="detail-empty" id="detail-empty">
+      <div class="icon" aria-hidden="true">📍</div>
+      <h3>Select a neighborhood</h3>
+      <p>Tap any area on the map, or pick from the list below, to see its current maintenance and landscaping projects.</p>
+    </div>
+  </aside>
+</main>
+
+<!-- Fallback project data — used when the page is opened directly from a file (not hosted).
+     When the page is hosted, it will try to load projects.json first and use that instead. -->
+<script type="application/json" id="projects-fallback">
+{
+  "property": {
+    "name": "Del Mesa Carmel",
+    "subtitle": "California's Premier Adult Community",
+    "address": "500 Del Mesa Drive, Carmel, California 93923",
+    "phone": "831.624.1853",
+    "last_updated": "April 2026"
+  },
+  "status_labels": {
+    "active": "In Progress",
+    "planned": "Scheduled",
+    "complete": "Complete"
+  },
+  "community_notices": [
+    {
+      "title": "Annual Safety Inspections Underway",
+      "description": "Safety Inspections are being scheduled across all neighborhoods through June. Please call the Front Desk to schedule your slot when your neighborhood's week is announced.",
+      "level": "info"
+    }
+  ],
+  "neighborhoods": {
+    "pacific-heights-1": {
+      "name": "Pacific Heights 1",
+      "units": "1–27",
+      "notices": [
+        {
+          "title": "Nearby Ramp Demolition — Use Caution",
+          "description": "Ramp demolition is in progress at the neighboring Pacific Heights 2 area (upstairs Units 32 & 34) through May 1. Expect loud noise, debris, and allergens. Keep windows and doors closed when in the area.",
+          "level": "warning"
+        }
+      ],
+      "projects": {
+        "maintenance": [],
+        "landscaping": [
+          {
+            "title": "Arts & Crafts Center Garden Beautification",
+            "description": "Ongoing project until completed. Planting around the center, adding and fixing irrigation. Adding boulders and a shed behind the Arts & Crafts Center. Also refurbishing retaining wall at Unit #30.",
+            "status": "active",
+            "date": "Ongoing"
+          }
+        ]
+      }
+    },
+    "pacific-heights-2": {
+      "name": "Pacific Heights 2",
+      "units": "28–57",
+      "notices": [
+        {
+          "title": "Ramp Demolition — Use Caution",
+          "description": "Ramp demolition is happening around upstairs Units 32 & 34 through May 1. Please use caution in these areas. Expect loud noise, debris, and allergens. Keep windows and doors closed.",
+          "level": "warning"
+        }
+      ],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Ramp Demolition & Replacement — Units 32 & 34",
+            "description": "Demolition and replacement of the ramp by upstairs Units 32 & 34.",
+            "status": "active",
+            "date": "April 13 – May 1 (estimated completion)"
+          },
+          {
+            "title": "Arts & Crafts Center Painting",
+            "description": "Interior painting work at the Arts & Crafts Center.",
+            "status": "active",
+            "date": "Ongoing"
+          },
+          {
+            "title": "Adobe Walls",
+            "description": "Adobe wall repair and restoration work.",
+            "status": "active",
+            "date": "Ongoing"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Arts & Crafts Center Garden Beautification",
+            "description": "Ongoing project until completed. Planting around the center, adding and fixing irrigation. Adding boulders and a shed behind the Arts & Crafts Center. Also refurbishing retaining wall at Unit #30.",
+            "status": "active",
+            "date": "Ongoing"
+          }
+        ]
+      }
+    },
+    "sunny-flats": {
+      "name": "Sunny Flats",
+      "units": "58–74",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please check with the Front Desk to verify your time frame.",
+            "status": "active",
+            "date": "In progress"
+          }
+        ],
+        "landscaping": []
+      }
+    },
+    "sunny-mesa": {
+      "name": "Sunny Mesa",
+      "units": "75–100",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of April 27 – May 1"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Cruz Tree Service",
+            "description": "Tree removal and tree trimming. Cruz Tree Service is scheduled to be in your area. Check back later for an update.",
+            "status": "planned",
+            "date": "To be announced"
+          }
+        ]
+      }
+    },
+    "mesa-west": {
+      "name": "Mesa West",
+      "units": "101–125",
+      "notices": [
+        {
+          "title": "Tree Service in Progress — Use Caution",
+          "description": "Cruz Tree Service is actively trimming and removing trees in this area. Please use caution when walking near the work. Close doors and windows to prevent dust from entering your home.",
+          "level": "warning"
+        }
+      ],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of May 4 – 8"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Cruz Tree Service — Trimming & Removal",
+            "description": "Tree trimming and removal is in progress until completed.",
+            "status": "active",
+            "date": "In progress"
+          },
+          {
+            "title": "Juniper Removal & Beautification",
+            "description": "Juniper removal is completed. The crew is now working on adding mulch and planting plants. In progress until completed.",
+            "status": "active",
+            "date": "In progress"
+          }
+        ]
+      }
+    },
+    "stonybrooks": {
+      "name": "Stonybrooks",
+      "units": "126–150",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of May 11 – 15"
+          }
+        ],
+        "landscaping": []
+      }
+    },
+    "quail-hollow": {
+      "name": "Quail Hollow",
+      "units": "151–162",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of May 18 – 22"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Cruz Tree Service — Hazard Reduction Trimming",
+            "description": "Hazard reduction tree trimming. Cruz Tree Service is scheduled to be in your area. Check back later for an update.",
+            "status": "planned",
+            "date": "To be announced"
+          }
+        ]
+      }
+    },
+    "sunrise-vista": {
+      "name": "Sunrise Vista",
+      "units": "163–184",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of May 26 – 29"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Cruz Tree Service — Hazard Reduction Trimming",
+            "description": "Hazard reduction tree trimming. Cruz Tree Service is scheduled to be in your area. Check back later for an update.",
+            "status": "planned",
+            "date": "To be announced"
+          }
+        ]
+      }
+    },
+    "old-oaks-1": {
+      "name": "Old Oaks 1",
+      "units": "185–212",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of June 1 – 5"
+          }
+        ],
+        "landscaping": []
+      }
+    },
+    "old-oaks-2": {
+      "name": "Old Oaks 2",
+      "units": "213–242",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of June 8 – 12"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Juniper Removal & Beautification",
+            "description": "Juniper removal has been completed. Crews are working on beautification, adding mulch and planting in this neighborhood. In progress throughout the week.",
+            "status": "active",
+            "date": "In progress"
+          }
+        ]
+      }
+    },
+    "mini-mesa": {
+      "name": "Mini Mesa",
+      "units": "243–265",
+      "notices": [],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of June 15 – 19"
+          }
+        ],
+        "landscaping": []
+      }
+    },
+    "the-highlands": {
+      "name": "The Highlands",
+      "units": "266–289 + 228",
+      "notices": [
+        {
+          "title": "Dog Park Renovation — Use Caution",
+          "description": "Please use caution when walking around this neighborhood and up at the hill while work is in progress.",
+          "level": "warning"
+        }
+      ],
+      "projects": {
+        "maintenance": [
+          {
+            "title": "Annual Safety Inspections",
+            "description": "Ongoing Annual Safety Inspections. Please call the Front Desk to schedule your slot.",
+            "status": "planned",
+            "date": "Week of June 22 – 26"
+          }
+        ],
+        "landscaping": [
+          {
+            "title": "Dog Park Renovation Project",
+            "description": "Dog Park Renovation Project will continue as planned until completed. Ongoing until completed.",
+            "status": "active",
+            "date": "Estimated completion May 1"
+          }
+        ]
+      }
+    }
+  }
+}
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Shared state ----------
+  var state = {
+    data: null,
+    selectedHood: null,
+    dirty: false
+  };
+  var STORAGE_KEY = 'delmesa-map-draft-v1';
+
+  // ---------- Load data: try projects.json first, fall back to embedded ----------
+  async function loadData() {
+    // Check for a locally-saved draft first (unsaved edits)
+    try {
+      var draft = localStorage.getItem(STORAGE_KEY);
+      if (draft) {
+        var parsed = JSON.parse(draft);
+        state.dirty = true;
+        return parsed;
+      }
+    } catch (e) {}
+    
+    // Fetch from GitHub Gist
+    try {
+      const res = await fetch('https://gist.githubusercontent.com/delmesacarmel/007808f57ff23eb74b7c5dd71193bbb3/raw/projects.json', { cache: 'no-store' });
+      if (res.ok) return await res.json();
+    } catch (e) { console.error('Gist fetch failed:', e); }
+    
+    // Fallback to embedded data
+    const fallback = document.getElementById('projects-fallback').textContent;
+    return JSON.parse(fallback);
+  }
+
+  // ---------- Render helpers ----------
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  function countActive(hood) {
+    const m = hood.projects && hood.projects.maintenance || [];
+    const l = hood.projects && hood.projects.landscaping || [];
+    return m.concat(l).filter(p => p.status === 'active').length;
+  }
+
+  function renderHeader(property) {
+    if (!property) return;
+    if (property.name)       $('#property-name').textContent = property.name;
+    if (property.subtitle)   $('#property-subtitle').textContent = property.subtitle;
+    if (property.address)    $('#property-address').textContent = property.address;
+    if (property.phone)      $('#property-phone').textContent = property.phone;
+    if (property.last_updated) $('#last-updated').textContent = property.last_updated;
+    if (property.name) document.title = property.name + ' — Project Map';
+  }
+
+  function renderIndex(data, selectHandler) {
+    const list = $('#hood-index');
+    list.innerHTML = '';
+    Object.keys(data.neighborhoods).forEach(id => {
+      const h = data.neighborhoods[id];
+      const active = countActive(h);
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.hood = id;
+      btn.innerHTML =
+        '<span><span class="hood-name">' + escapeHtml(h.name) + '</span><br>' +
+        '<span class="unit-range">Units ' + escapeHtml(h.units) + '</span></span>' +
+        (active > 0 ? '<span class="active-count" title="Active projects">' + active + '</span>' : '');
+      btn.addEventListener('click', () => selectHandler(id));
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
+  function markActiveHoods(data) {
+    Object.keys(data.neighborhoods).forEach(id => {
+      const hood = data.neighborhoods[id];
+      const group = document.querySelector('.hood[data-hood="' + id + '"]');
+      if (!group) return;
+      if (countActive(hood) > 0) group.classList.add('has-active');
+      else group.classList.remove('has-active');
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+
+  function renderNoticeList(notices, editContext) {
+    if (!notices || notices.length === 0) return '';
+    return notices.map(function (n, idx) {
+      var level = (n.level || 'info').toLowerCase();
+      var icon = level === 'warning' ? '⚠️' : 'ℹ️';
+      var actions = '';
+      if (editContext) {
+        actions =
+          '<span class="notice-actions">' +
+            '<button type="button" class="icon-btn" title="Edit notice" ' +
+              'data-edit-notice="' + editContext + '" data-idx="' + idx + '">✏️</button>' +
+            '<button type="button" class="icon-btn delete" title="Delete notice" ' +
+              'data-delete-notice="' + editContext + '" data-idx="' + idx + '">🗑️</button>' +
+          '</span>';
+      }
+      return (
+        '<div class="notice level-' + level + '" role="note">' +
+          '<div class="notice-head">' +
+            '<span class="notice-icon" aria-hidden="true">' + icon + '</span>' +
+            '<div class="notice-title">' + escapeHtml(n.title || '') + '</div>' +
+            actions +
+          '</div>' +
+          (n.description ? '<p class="notice-body">' + escapeHtml(n.description) + '</p>' : '') +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function renderCommunityBanner(notices) {
+    var el = document.getElementById('community-banner');
+    if (!el) return;
+    var html = renderNoticeList(notices, 'community');
+    if (false) {
+      html += '<div style="max-width:1700px;margin:8px auto 0;padding:0 40px;"><button type="button" class="edit-btn small add-notice-btn" data-add-notice="community">+ Add Community Notice</button></div>';
+    }
+    el.innerHTML = html;
+  }
+
+  function renderProject(p, labels, editContext, idx) {
+    const status = (p.status || 'planned').toLowerCase();
+    const label = (labels && labels[status]) || status;
+    var actions = '';
+    if (editContext) {
+      actions =
+        '<span class="project-actions">' +
+          '<button type="button" class="icon-btn" title="Edit project" ' +
+            'data-edit-project="' + editContext + '" data-idx="' + idx + '">✏️</button>' +
+          '<button type="button" class="icon-btn delete" title="Delete project" ' +
+            'data-delete-project="' + editContext + '" data-idx="' + idx + '">🗑️</button>' +
+        '</span>';
+    }
+    return (
+      '<article class="project status-' + status + '">' +
+        '<div class="project-head with-actions">' +
+          '<div class="project-title">' + escapeHtml(p.title || 'Untitled project') + '</div>' +
+          '<span class="status-badge status-' + status + '">' + escapeHtml(label) + '</span>' +
+          actions +
+        '</div>' +
+        (p.description ? '<p class="project-desc">' + escapeHtml(p.description) + '</p>' : '') +
+        (p.date ? '<p class="project-date">' + escapeHtml(p.date) + '</p>' : '') +
+      '</article>'
+    );
+  }
+
+  function renderSection(title, projects, labels, editContext) {
+    var body;
+    if (!projects || projects.length === 0) {
+      body = '<div class="empty-note">No ' + escapeHtml(title.toLowerCase()) + ' projects at this time.</div>';
+    } else {
+      body = projects.map(function (p, i) { return renderProject(p, labels, editContext, i); }).join('');
+    }
+    var countNote = (projects && projects.length) ? ' <span style="color:var(--ink-muted);font-weight:normal;">(' + projects.length + ')</span>' : '';
+    var addBtn = editContext
+      ? '<button type="button" class="edit-btn small add-project-btn" data-add-project="' + editContext + '">+ Add ' + escapeHtml(title) + ' Project</button>'
+      : '';
+    return (
+      '<section class="section">' +
+        '<h3 class="section-title">' + escapeHtml(title) + countNote + '</h3>' +
+        body +
+        addBtn +
+      '</section>'
+    );
+  }
+
+  function selectHood(data, id) {
+    const hood = data.neighborhoods[id];
+    if (!hood) return;
+    state.selectedHood = id;
+
+    // visual state — map
+    $$('.hood').forEach(g => g.classList.toggle('is-selected', g.dataset.hood === id));
+    // visual state — index list
+    $$('#hood-index button').forEach(b => b.classList.toggle('is-selected', b.dataset.hood === id));
+
+    // render detail
+    const panel = $('#detail-panel');
+    const labels = data.status_labels || {};
+    const editing = false;
+    const noticeCtx = editing ? ('hood:' + id) : null;
+    const maintCtx  = editing ? ('hood:' + id + ':maintenance')  : null;
+    const landCtx   = editing ? ('hood:' + id + ':landscaping') : null;
+
+    var noticesHtml = '';
+    if ((hood.notices && hood.notices.length > 0) || editing) {
+      noticesHtml = '<section class="notices-section">' +
+        '<h3 class="section-title">⚠️ Notices & Warnings</h3>' +
+        renderNoticeList(hood.notices || [], noticeCtx);
+      if (editing) {
+        noticesHtml += '<button type="button" class="edit-btn small add-notice-btn" data-add-notice="hood:' + id + '">+ Add Notice</button>';
+      }
+      noticesHtml += '</section>';
+    }
+    panel.innerHTML =
+      '<div class="detail-header">' +
+        '<span class="eyebrow">Neighborhood</span>' +
+        '<h2>' + escapeHtml(hood.name) + '</h2>' +
+        '<p class="units">Units ' + escapeHtml(hood.units) + '</p>' +
+      '</div>' +
+      noticesHtml +
+      renderSection('Maintenance',  hood.projects && hood.projects.maintenance,  labels, maintCtx) +
+      renderSection('Landscaping', hood.projects && hood.projects.landscaping, labels, landCtx);
+
+    // scroll into view on mobile
+    if (window.matchMedia('(max-width: 1000px)').matches) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // ---------- Wire up ----------
+  async function init() {
+    const data = await loadData();
+    state.data = data;
+    renderHeader(data.property);
+    renderCommunityBanner(data.community_notices);
+    markActiveHoods(data);
+    renderIndex(data, id => selectHood(data, id));
+
+    document.querySelectorAll('.hood').forEach(g => {
+      g.addEventListener('click',   () => selectHood(data, g.dataset.hood));
+      g.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectHood(data, g.dataset.hood);
+        }
+      });
+    });
+  }
+
+  // PUBLIC VIEWER — all edit-mode code removed. Original code preserved below as no-ops:
+  // ============================================================
+  // ==================== EDIT MODE SYSTEM (DISABLED) ===========
+  // ============================================================
+  // ==================== EDIT MODE SYSTEM ======================
+  // ============================================================
+
+  var EDIT_PASSWORD = null; // set to a string like 'delmesa2026' to require a password
+
+  function setupEditMode() {
+    var toggle = $('#toggle-edit');
+    if (!toggle) return;
+
+    // Edit button stays hidden until unlocked with a keyboard shortcut.
+    // Press Ctrl+Shift+E (Windows/Linux) or Cmd+Shift+E (Mac) to reveal it.
+    // Residents will never see the button unless they know the shortcut.
+    // Also supports legacy URL triggers (#edit / ?edit) for standalone hosting.
+    toggle.style.display = 'none';
+    var editUnlocked = false;
+
+    function unlockEditor() {
+      if (editUnlocked) return;
+      editUnlocked = true;
+      toggle.style.display = '';
+    }
+
+    // Check legacy URL triggers (works for standalone hosting, not inside Wix iframes)
+    if (/(^|[?&])edit(=|&|$)/.test(window.location.search) ||
+        /(^|#|&)edit(=|&|$)/.test(window.location.hash)) {
+      unlockEditor();
+    }
+
+    // Keyboard shortcut — works everywhere, including inside Wix embeds
+    document.addEventListener('keydown', function (e) {
+      // Ctrl+Shift+E (Windows/Linux) or Cmd+Shift+E (Mac)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+        e.preventDefault();
+        unlockEditor();
+        // Visual confirmation when unlocking via shortcut
+        if (!document.body.classList.contains('edit-mode')) {
+          toggle.focus();
+          toggle.animate(
+            [{ transform: 'scale(1)' }, { transform: 'scale(1.15)' }, { transform: 'scale(1)' }],
+            { duration: 400 }
+          );
+        }
+      }
+    });
+
+    toggle.addEventListener('click', function () {
+      if (false) {
+        exitEditMode();
+      } else {
+        enterEditMode();
+      }
+    });
+
+    // Delegated click handling for all edit controls inside the panel & banner
+    document.addEventListener('click', onAdminClick);
+
+    // Publish panel buttons
+    $('#download-json').addEventListener('click', downloadJson);
+    $('#discard-changes').addEventListener('click', discardChanges);
+
+    // Warn if leaving with unsaved changes
+    window.addEventListener('beforeunload', function (e) {
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  }
+
+  function enterEditMode() {
+    if (EDIT_PASSWORD) {
+      var pw = prompt('Enter editor password:');
+      if (pw !== EDIT_PASSWORD) {
+        if (pw !== null) alert('Incorrect password.');
+        return;
+      }
+    }
+    document.body.classList.add('edit-mode');
+    $('#toggle-edit').textContent = '👁 Exit Edit';
+    $('#toggle-edit').setAttribute('aria-pressed', 'true');
+    refreshAllViews();
+  }
+
+  function exitEditMode() {
+    if (state.dirty) {
+      var go = confirm('You have unsaved changes. Exit edit mode anyway? Your draft is still saved in this browser — re-enter edit mode to keep working.');
+      if (!go) return;
+    }
+    document.body.classList.remove('edit-mode');
+    $('#toggle-edit').textContent = '✏️ Edit';
+    $('#toggle-edit').setAttribute('aria-pressed', 'false');
+    refreshAllViews();
+  }
+
+  function refreshAllViews() {
+    renderCommunityBanner(state.data.community_notices);
+    markActiveHoods(state.data);
+    renderIndex(state.data, id => selectHood(state.data, id));
+    if (state.selectedHood) selectHood(state.data, state.selectedHood);
+  }
+
+  function markDirty() {
+    state.dirty = true;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data)); } catch (e) {}
+    updatePublishStatus();
+  }
+
+  function updatePublishStatus() {
+    var status = $('#publish-status');
+    var help   = $('#publish-help');
+    if (!status) return;
+    if (state.dirty) {
+      document.body.classList.add('has-unsaved-changes');
+      status.textContent = 'Unsaved changes';
+      help.textContent = 'Download the updated file and replace projects.json on your website.';
+    } else {
+      document.body.classList.remove('has-unsaved-changes');
+      status.textContent = 'All changes saved locally';
+      help.textContent = 'Download the updated file when you\'re ready to publish to the website.';
+    }
+  }
+
+  // --------- Click delegation ----------
+  function onAdminClick(ev) {
+    var t = ev.target.closest('button');
+    if (!t) return;
+
+    // Add project
+    if (t.dataset.addProject) {
+      var parts = t.dataset.addProject.split(':'); // "hood:<id>:<category>"
+      openProjectModal(parts[1], parts[2], null);
+      return;
+    }
+    if (t.dataset.editProject) {
+      var p = t.dataset.editProject.split(':');
+      openProjectModal(p[1], p[2], parseInt(t.dataset.idx, 10));
+      return;
+    }
+    if (t.dataset.deleteProject) {
+      var d = t.dataset.deleteProject.split(':');
+      deleteProject(d[1], d[2], parseInt(t.dataset.idx, 10));
+      return;
+    }
+    if (t.dataset.addNotice) {
+      var a = t.dataset.addNotice.split(':');
+      openNoticeModal(a[0], a[1], null);
+      return;
+    }
+    if (t.dataset.editNotice) {
+      var e = t.dataset.editNotice.split(':');
+      openNoticeModal(e[0], e[1], parseInt(t.dataset.idx, 10));
+      return;
+    }
+    if (t.dataset.deleteNotice) {
+      var x = t.dataset.deleteNotice.split(':');
+      deleteNotice(x[0], x[1], parseInt(t.dataset.idx, 10));
+      return;
+    }
+  }
+
+  // --------- Modal: project ----------
+  function openProjectModal(hoodId, category, projectIdx) {
+    var hood = state.data.neighborhoods[hoodId];
+    if (!hood) return;
+    var isNew = projectIdx === null || projectIdx === undefined || isNaN(projectIdx);
+    var p = isNew
+      ? { title: '', description: '', status: 'active', date: '' }
+      : Object.assign({}, hood.projects[category][projectIdx]);
+    var labels = state.data.status_labels || {};
+
+    var html =
+      '<h2 id="modal-title">' + (isNew ? 'Add' : 'Edit') + ' ' + category.charAt(0).toUpperCase() + category.slice(1) + ' Project</h2>' +
+      '<p class="modal-sub">' + escapeHtml(hood.name) + ' · Units ' + escapeHtml(hood.units) + '</p>' +
+      '<div class="form-row">' +
+        '<label for="f-title">Project Title <span class="hint">(required)</span></label>' +
+        '<input type="text" id="f-title" value="' + escapeHtml(p.title) + '" placeholder="e.g. Ramp Demolition & Replacement">' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<label for="f-desc">Description <span class="hint">(optional)</span></label>' +
+        '<textarea id="f-desc" placeholder="What\'s happening, any warnings for residents...">' + escapeHtml(p.description) + '</textarea>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<label for="f-status">Status</label>' +
+        '<select id="f-status">' +
+          '<option value="active"' +   (p.status === 'active'   ? ' selected' : '') + '>' + escapeHtml(labels.active   || 'In Progress') + '</option>' +
+          '<option value="planned"' +  (p.status === 'planned'  ? ' selected' : '') + '>' + escapeHtml(labels.planned  || 'Scheduled')   + '</option>' +
+          '<option value="complete"' + (p.status === 'complete' ? ' selected' : '') + '>' + escapeHtml(labels.complete || 'Complete')    + '</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<label for="f-date">Date / Timing <span class="hint">(optional — any text)</span></label>' +
+        '<input type="text" id="f-date" value="' + escapeHtml(p.date) + '" placeholder="e.g. Week of May 4 – 8, or Ongoing, or April 13 – May 1">' +
+      '</div>' +
+      '<div class="form-actions">' +
+        (isNew ? '' : '<button type="button" class="edit-btn danger" id="f-delete">🗑 Delete</button>') +
+        '<span class="spacer"></span>' +
+        '<button type="button" class="edit-btn" id="f-cancel">Cancel</button>' +
+        '<button type="button" class="edit-btn primary" id="f-save">Save</button>' +
+      '</div>';
+
+    showModal(html, function onOpen() {
+      $('#f-save').addEventListener('click', function () {
+        var title = $('#f-title').value.trim();
+        if (!title) { alert('Please enter a project title.'); $('#f-title').focus(); return; }
+        var updated = {
+          title: title,
+          description: $('#f-desc').value.trim(),
+          status: $('#f-status').value,
+          date: $('#f-date').value.trim()
+        };
+        if (isNew) {
+          if (!hood.projects) hood.projects = {};
+          if (!hood.projects[category]) hood.projects[category] = [];
+          hood.projects[category].push(updated);
+        } else {
+          hood.projects[category][projectIdx] = updated;
+        }
+        markDirty();
+        closeModal();
+        refreshAllViews();
+      });
+      $('#f-cancel').addEventListener('click', closeModal);
+      if (!isNew && $('#f-delete')) {
+        $('#f-delete').addEventListener('click', function () {
+          if (!confirm('Delete this project? This cannot be undone.')) return;
+          hood.projects[category].splice(projectIdx, 1);
+          markDirty();
+          closeModal();
+          refreshAllViews();
+        });
+      }
+      $('#f-title').focus();
+    });
+  }
+
+  function deleteProject(hoodId, category, idx) {
+    var hood = state.data.neighborhoods[hoodId];
+    if (!hood) return;
+    var p = hood.projects[category][idx];
+    if (!confirm('Delete "' + (p.title || 'this project') + '"? This cannot be undone.')) return;
+    hood.projects[category].splice(idx, 1);
+    markDirty();
+    refreshAllViews();
+  }
+
+  // --------- Modal: notice ----------
+  function openNoticeModal(scope, hoodId, noticeIdx) {
+    // scope = "community" or "hood"
+    var list, headerText;
+    if (scope === 'community') {
+      list = state.data.community_notices || (state.data.community_notices = []);
+      headerText = 'Community-Wide Notice';
+    } else {
+      var h = state.data.neighborhoods[hoodId];
+      if (!h) return;
+      if (!h.notices) h.notices = [];
+      list = h.notices;
+      headerText = h.name + ' Notice';
+    }
+    var isNew = noticeIdx === null || noticeIdx === undefined || isNaN(noticeIdx);
+    var n = isNew ? { title: '', description: '', level: 'warning' } : Object.assign({}, list[noticeIdx]);
+
+    var html =
+      '<h2 id="modal-title">' + (isNew ? 'Add' : 'Edit') + ' ' + escapeHtml(headerText) + '</h2>' +
+      '<p class="modal-sub">Notices appear at the top of the ' + (scope === 'community' ? 'entire map' : 'neighborhood detail panel') + '.</p>' +
+      '<div class="form-row">' +
+        '<label for="f-title">Notice Title <span class="hint">(required)</span></label>' +
+        '<input type="text" id="f-title" value="' + escapeHtml(n.title) + '" placeholder="e.g. Tree Service in Progress — Use Caution">' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<label for="f-desc">Description <span class="hint">(optional)</span></label>' +
+        '<textarea id="f-desc" placeholder="Details for residents...">' + escapeHtml(n.description) + '</textarea>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<label for="f-level">Type</label>' +
+        '<select id="f-level">' +
+          '<option value="warning"' + (n.level === 'warning' ? ' selected' : '') + '>⚠️ Warning (orange)</option>' +
+          '<option value="info"'    + (n.level === 'info'    ? ' selected' : '') + '>ℹ️ Info (blue)</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-actions">' +
+        (isNew ? '' : '<button type="button" class="edit-btn danger" id="f-delete">🗑 Delete</button>') +
+        '<span class="spacer"></span>' +
+        '<button type="button" class="edit-btn" id="f-cancel">Cancel</button>' +
+        '<button type="button" class="edit-btn primary" id="f-save">Save</button>' +
+      '</div>';
+
+    showModal(html, function () {
+      $('#f-save').addEventListener('click', function () {
+        var title = $('#f-title').value.trim();
+        if (!title) { alert('Please enter a notice title.'); $('#f-title').focus(); return; }
+        var updated = {
+          title: title,
+          description: $('#f-desc').value.trim(),
+          level: $('#f-level').value
+        };
+        if (isNew) list.push(updated);
+        else list[noticeIdx] = updated;
+        markDirty();
+        closeModal();
+        refreshAllViews();
+      });
+      $('#f-cancel').addEventListener('click', closeModal);
+      if (!isNew && $('#f-delete')) {
+        $('#f-delete').addEventListener('click', function () {
+          if (!confirm('Delete this notice?')) return;
+          list.splice(noticeIdx, 1);
+          markDirty();
+          closeModal();
+          refreshAllViews();
+        });
+      }
+      $('#f-title').focus();
+    });
+  }
+
+  function deleteNotice(scope, hoodId, idx) {
+    var list;
+    if (scope === 'community') list = state.data.community_notices;
+    else list = state.data.neighborhoods[hoodId] && state.data.neighborhoods[hoodId].notices;
+    if (!list) return;
+    var n = list[idx];
+    if (!confirm('Delete "' + (n.title || 'this notice') + '"?')) return;
+    list.splice(idx, 1);
+    markDirty();
+    refreshAllViews();
+  }
+
+  // --------- Modal plumbing ----------
+  function showModal(html, onOpen) {
+    var backdrop = $('#modal-backdrop');
+    var modal = $('#modal');
+    modal.innerHTML = html;
+    backdrop.classList.add('is-open');
+    backdrop.addEventListener('click', onBackdropClick);
+    document.addEventListener('keydown', onEsc);
+    if (onOpen) onOpen();
+  }
+  function closeModal() {
+    var backdrop = $('#modal-backdrop');
+    backdrop.classList.remove('is-open');
+    backdrop.removeEventListener('click', onBackdropClick);
+    document.removeEventListener('keydown', onEsc);
+  }
+  function onBackdropClick(e) {
+    if (e.target.id === 'modal-backdrop') closeModal();
+  }
+  function onEsc(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+
+  // --------- Publish ---------
+  async function downloadJson() {
+    // Update the last_updated stamp to today
+    var d = new Date();
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var stamp = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    if (!state.data.property) state.data.property = {};
+    state.data.property.last_updated = stamp;
+    renderHeader(state.data.property);
+
+    var text = JSON.stringify(state.data, null, 2);
+    
+    // Save to GitHub Gist
+    var saveBtn = document.getElementById('download-json');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Saving...';
+    
+    try {
+      const res = await fetch('https://api.github.com/gists/007808f57ff23eb74b7c5dd71193bbb3', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'token NO_TOKEN_PUBLIC_VIEWER',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          files: {
+            'projects.json': { content: text }
+          }
+        })
+      });
+      
+      if (res.ok) {
+        // Success
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        state.dirty = false;
+        updatePublishStatus();
+        saveBtn.textContent = '✓ Saved';
+        setTimeout(function() { saveBtn.textContent = '⬇ Download projects.json'; saveBtn.disabled = false; }, 2000);
+        alert('✓ Changes published! Visitors will see the updates immediately.');
+      } else {
+        throw new Error('Gist API returned ' + res.status);
+      }
+    } catch (err) {
+      console.error('Save to Gist failed:', err);
+      saveBtn.textContent = '⬇ Download projects.json';
+      saveBtn.disabled = false;
+      alert('Could not save to GitHub. Check console for details. You can still download the JSON manually.');
+      
+      // Fallback: offer download
+      var blob = new Blob([text], { type: 'application/json' });
+      var url  = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'projects.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+  }
+
+  function discardChanges() {
+    if (!state.dirty) return;
+    if (!confirm('Discard all unsaved changes and reload the live data from the website? This cannot be undone.')) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    state.dirty = false;
+    location.reload();
+  }
+
+
+  function setupEditMode() {}
+  function enterEditMode() {}
+  function exitEditMode() {}
+  function refreshAllViews() {}
+  function markDirty() {}
+  function updatePublishStatus() {}
+  function onAdminClick() {}
+  function openProjectModal() {}
+  function deleteProject() {}
+  function openNoticeModal() {}
+  function deleteNotice() {}
+  function showModal() {}
+  function closeModal() {}
+  function downloadJson() {}
+  function discardChanges() {}
+  // Override renderNoticeList and renderProject to NEVER add edit context
+  var _origRenderNoticeList = renderNoticeList;
+  renderNoticeList = function(notices) { return _origRenderNoticeList(notices, null); };
+  var _origRenderProject = renderProject;
+  renderProject = function(p, labels) { return _origRenderProject(p, labels, null, 0); };
+  var _origRenderSection = renderSection;
+  renderSection = function(title, projects, labels) { return _origRenderSection(title, projects, labels, null); };
+
+  init().catch(err => {
+    console.error('Failed to init map:', err);
+    const panel = document.getElementById('detail-panel');
+    if (panel) {
+      panel.innerHTML = '<div class="detail-empty"><h3>Could not load project data</h3><p>Please check that projects.json is valid.</p></div>';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
